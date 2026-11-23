@@ -96,9 +96,20 @@ function M.install()
 				end
 			end
 		end,
+		GetGroupPaths = function(result)
+			local seen = {}
+			for _, it in pairs(M.items) do
+				if it.group and not seen[it.group] then
+					seen[it.group] = true
+					result[#result + 1] = it.group
+				end
+			end
+			return result
+		end,
 		GetCustomPriceValue = function(str, itemString)
 			M.priceCalls = M.priceCalls + 1
-			assert(str == "first(post, 0.001)", "unexpected price string " .. str)
+			-- it.post is the raw `post` value; the string turns it into 2 (posts) or 1 (vendor), as TSM would
+			assert(str == "ifgte(first(post, 0.001), 1, 2, 1)", "unexpected price string " .. str)
 			for _, it in pairs(M.items) do
 				if "i:" .. it.name == itemString then
 					if it.post == "error" then
@@ -107,7 +118,7 @@ function M.install()
 					if it.post == nil then
 						return nil, "Invalid price source: post"
 					end
-					return it.post
+					return it.post >= 1 and 2 or 1
 				end
 			end
 		end,

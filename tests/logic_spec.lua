@@ -50,18 +50,34 @@ describe("Logic", function()
 			assert.same({ true, "poor quality" }, { v({ quality = 0, sellPrice = 5 }) })
 		end)
 
+		it("keeps a grey item in a held group", function()
+			assert.same({ false, "held group" }, { v({ quality = 0, sellPrice = 5, groupPath = "Keep (never post)" }) })
+		end)
+
 		it("leaves ungrouped items alone", function()
 			assert.same({ false, "not in a TSM group" }, { v({ quality = 1, sellPrice = 5, post = 0 }) })
 		end)
 
 		it("marks an item the post rule refuses", function()
-			local item = { quality = 1, sellPrice = 5, groupPath = "Consumables and other goods", post = 0.001 }
+			local item = { quality = 1, sellPrice = 5, groupPath = "Consumables and other goods", post = L.GATE_VENDOR }
 			assert.same({ true, "post rule says vendor" }, { v(item) })
 		end)
 
 		it("does not mark an item that posts", function()
-			local item = { quality = 2, sellPrice = 500, groupPath = "BoE gear`Greens 20-39", post = 12000 }
+			local item = { quality = 2, sellPrice = 500, groupPath = "BoE gear`Greens 20-39", post = L.GATE_POSTS }
 			assert.same({ false, "posts" }, { v(item) })
+		end)
+
+		it("reports an unexpected gate value as broken", function()
+			local junk, reason = v({ quality = 1, sellPrice = 5, groupPath = "Bags", post = 7 })
+			assert.is_false(junk)
+			assert.equal("broken: post price string gave 7", reason)
+		end)
+
+		it("does not mark a grey whose group lookup failed", function()
+			local junk, reason = v({ quality = 0, sellPrice = 5, lookupError = "TradeSkillMaster not loaded" })
+			assert.is_false(junk)
+			assert.equal("broken: TradeSkillMaster not loaded", reason)
 		end)
 
 		it("holds the Keep, Vendor-bought and current leather groups", function()
@@ -71,7 +87,8 @@ describe("Logic", function()
 		end)
 
 		it("marks outgrown leather the parent group holds", function()
-			local item = { quality = 1, sellPrice = 5, groupPath = "Materials`Leather`Outgrown tiers", post = 0 }
+			local item =
+				{ quality = 1, sellPrice = 5, groupPath = "Materials`Leather`Outgrown tiers", post = L.GATE_VENDOR }
 			assert.is_true((v(item)))
 		end)
 
