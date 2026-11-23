@@ -21,6 +21,9 @@ ns.selftest = selftest
 
 local cache = {}
 ns.cache = cache
+-- link -> how many times it was judged before its item info loaded
+ns.notNowTries = {}
+ns.NOT_NOW_TRIES = 3
 
 function ns.initDB(saved)
 	local db = type(saved) == "table" and saved or {}
@@ -71,10 +74,7 @@ local function gather(itemLink)
 	-- A grey still needs its group (a held group wins over "poor quality") but never the post price.
 	local grey = quality == 0
 	local function broken(msg)
-		if not grey then
-			item.groupPath = "?" -- reach the post check so the broken link is reported
-			item.postError = msg
-		end
+		item.lookupError = msg
 		return item
 	end
 	if type(TSM_API) ~= "table" then
@@ -131,10 +131,18 @@ function ns.evaluate(itemLink)
 	local item, why = gather(itemLink)
 	if not item then
 		counters.notNow = counters.notNow + 1
-		ns.waitingForItems = true -- GET_ITEM_INFO_RECEIVED redraws the bags
+		-- GET_ITEM_INFO_RECEIVED redraws the bags, a few times per link: one that never loads stops asking
+		local tries = (ns.notNowTries[itemLink] or 0) + 1
+		ns.notNowTries[itemLink] = tries
+		if tries <= ns.NOT_NOW_TRIES then
+			ns.waitingForItems = true
+		end
 		return false, why
 	end
+	ns.notNowTries[itemLink] = nil
 	local junk, reason = Logic.verdict(item, ns.rules)
+	local entry = { item = item.name, group = item.groupPath, post = item.post, junk = junk, reason = reason }
+	remember(entry)
 	if reason:sub(1, 7) == "broken:" then
 		counters.broken = counters.broken + 1
 		selftest.lastBroken = { item = item.name, reason = reason, at = now() }
@@ -148,7 +156,6 @@ function ns.evaluate(itemLink)
 		counters.junk = counters.junk + 1
 	end
 	cache[itemLink] = { at = t, junk = junk, reason = reason, sellPrice = item.sellPrice }
-	remember({ item = item.name, group = item.groupPath, post = item.post, junk = junk, reason = reason })
 	return junk, reason, item.sellPrice
 end
 
@@ -256,16 +263,17 @@ local function knownGroup(path)
 	if not ok or type(paths) ~= "table" then
 		return true
 	end
-	local lower = path:lower()
+	local lower, suggestion = path:lower(), nil
 	for _, p in ipairs(paths) do
 		if p == path or p:sub(1, #path + 1) == path .. "`" then
 			return true
 		end
-		if p:lower() == lower then
-			return false, p
+		local pl = p:lower()
+		if pl == lower or pl:sub(1, #lower + 1) == lower .. "`" then
+			suggestion = p:sub(1, #path) -- same length: only the case differs
 		end
 	end
-	return false
+	return false, suggestion
 end
 
 function ns.slash(msg)

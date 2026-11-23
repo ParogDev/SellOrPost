@@ -102,6 +102,24 @@ describe("Core", function()
 			assert.equal(2, #mock.timers) -- nothing waiting any more
 		end)
 
+		it("stops redrawing for a link that never loads", function()
+			for i = 1, ns.NOT_NOW_TRIES + 2 do
+				cb("|Hnever|h")
+				mock.fire("GET_ITEM_INFO_RECEIVED", i)
+				local queued = mock.timers[#mock.timers]
+				if #mock.timers > i then
+					queued.fn()
+				end
+			end
+			assert.equal(ns.NOT_NOW_TRIES, mock.refreshes)
+		end)
+
+		it("suggests the spelling of a parent group typed in the wrong case", function()
+			mock.item("|Hk|h", { name = "K", quality = 1, sellPrice = 5, group = "Materials`Leather", post = 0 })
+			SlashCmdList.SELLORPOST("rule materials off")
+			assert.matches("did you mean 'Materials'", mock.chat[1], 1, true)
+		end)
+
 		it("counts stacks it could not judge yet in /sellorpost", function()
 			mock.bags[0] = { [1] = { link = "|Hunknown|h", count = 1 } }
 			SlashCmdList.SELLORPOST("")
@@ -171,14 +189,15 @@ describe("Core", function()
 		end)
 	end)
 
-	it("reports TSM missing as broken for grouped-looking items, still marks greys", function()
+	it("marks nothing without TSM, greys included, and says why", function()
 		mock.tsmLoaded = false
 		ns = mock.loadAddon(".")
 		local grey = mock.item("|Hg|h", { name = "G", quality = 0, sellPrice = 2 })
 		local white = mock.item("|Hw|h", { name = "W", quality = 1, sellPrice = 2 })
-		assert.is_true(cb(grey))
+		assert.is_false(cb(grey))
 		assert.is_false(cb(white))
 		assert.matches("TradeSkillMaster not loaded", ns.selftest.lastBroken.reason, 1, true)
+		assert.equal("broken: TradeSkillMaster not loaded", ns.selftest.recent[1].reason)
 	end)
 
 	it("loads without Baganator and says so", function()

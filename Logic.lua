@@ -7,8 +7,12 @@ ns.Logic = Logic
 
 -- TSM custom price string evaluated per item. It is the same test every Auctioning operation's post cap runs
 -- (`ifgte(first(post, 0.001), 1, 1000, 0)`): under 1 copper means "Posting disabled.", which in this setup means
--- vendor it. `post` is a custom price source defined in TSM itself.
-Logic.POST_STRING = "first(post, 0.001)"
+-- vendor it. `post` is a custom price source defined in TSM itself. The answer is 1 (vendor) or 2 (posts), never
+-- 0: TSM_API.GetCustomPriceValue turns a 0 into nil, which would read as a failure. nil therefore means the string
+-- did not evaluate (no `post` source).
+Logic.POST_STRING = "ifgte(first(post, 0.001), 1, 2, 1)"
+Logic.GATE_VENDOR = 1
+Logic.GATE_POSTS = 2
 
 -- Group rules: TSM group path (subgroups joined by "`") -> true (may be marked) or false (never marked). The
 -- longest matching prefix wins, so a subgroup can undo its parent. Groups not listed may be marked.
@@ -33,12 +37,15 @@ function Logic.ruleFor(path, rules)
 	return best
 end
 
--- item: { quality, sellPrice, groupPath, post, postError }
+-- item: { quality, sellPrice, lookupError, groupPath, post (GATE_*), postError }
 -- Returns junk (boolean) and a reason (string). Reasons that start with "broken:" are failures to report; the
 -- rest are ordinary verdicts.
 function Logic.verdict(item, rules)
 	if not item.sellPrice or item.sellPrice <= 0 then
 		return false, "no vendor price"
+	end
+	if item.lookupError then
+		return false, "broken: " .. item.lookupError -- group unknown: even a grey may be held
 	end
 	if item.groupPath and Logic.ruleFor(item.groupPath, rules) == false then
 		return false, "held group" -- wins over "poor quality": a held grey stays
@@ -49,13 +56,12 @@ function Logic.verdict(item, rules)
 	if not item.groupPath then
 		return false, "not in a TSM group"
 	end
-	if type(item.post) ~= "number" then
-		return false, "broken: " .. (item.postError or "post price string gave no value")
-	end
-	if item.post < 1 then
+	if item.post == Logic.GATE_VENDOR then
 		return true, "post rule says vendor"
+	elseif item.post == Logic.GATE_POSTS then
+		return false, "posts"
 	end
-	return false, "posts"
+	return false, "broken: " .. (item.postError or ("post price string gave " .. tostring(item.post)))
 end
 
 -- Merges saved overrides (path -> boolean) over the defaults; anything else in the saved table is ignored.
