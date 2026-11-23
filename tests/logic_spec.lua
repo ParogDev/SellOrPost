@@ -50,6 +50,10 @@ describe("Logic", function()
 			assert.same({ true, "poor quality" }, { v({ quality = 0, sellPrice = 5 }) })
 		end)
 
+		it("keeps a grey item in a held group", function()
+			assert.same({ false, "held group" }, { v({ quality = 0, sellPrice = 5, groupPath = "Keep (never post)" }) })
+		end)
+
 		it("leaves ungrouped items alone", function()
 			assert.same({ false, "not in a TSM group" }, { v({ quality = 1, sellPrice = 5, post = 0 }) })
 		end)

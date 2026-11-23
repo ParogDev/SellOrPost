@@ -73,6 +73,58 @@ describe("Core", function()
 			assert.matches("is the `post` custom source defined", ns.selftest.lastBroken.reason, 1, true)
 		end)
 
+		it("does not cache a broken verdict and warns once per session", function()
+			local l = mock.item("|Hb|h", { name = "B", quality = 1, sellPrice = 5, group = "Bags" })
+			cb(l)
+			cb(l)
+			assert.equal(2, mock.priceCalls)
+			assert.equal(1, #mock.chat)
+			assert.matches("can't judge items, nothing is marked", mock.chat[1], 1, true)
+			mock.items[l].post = 0
+			assert.is_true(cb(l))
+		end)
+
+		it("keeps a grey item in a held group", function()
+			local g = mock.item("|Hhg|h", { name = "HG", quality = 0, sellPrice = 3, group = "Keep (never post)" })
+			assert.is_false(cb(g))
+			assert.equal(0, mock.priceCalls)
+		end)
+
+		it("redraws the bags once when items judged 'not now' load", function()
+			cb("|Hlate1|h")
+			cb("|Hlate2|h")
+			mock.fire("GET_ITEM_INFO_RECEIVED", 1)
+			mock.fire("GET_ITEM_INFO_RECEIVED", 2)
+			assert.equal(2, #mock.timers) -- the login refresh and one redraw
+			mock.timers[2].fn()
+			assert.equal(1, mock.refreshes)
+			mock.fire("GET_ITEM_INFO_RECEIVED", 3)
+			assert.equal(2, #mock.timers) -- nothing waiting any more
+		end)
+
+		it("counts stacks it could not judge yet in /sellorpost", function()
+			mock.bags[0] = { [1] = { link = "|Hunknown|h", count = 1 } }
+			SlashCmdList.SELLORPOST("")
+			assert.matches("nothing in the bags to vendor", mock.chat[1], 1, true)
+			assert.matches("1 stacks not judged yet", mock.chat[2], 1, true)
+		end)
+
+		it("refuses a rule for a group TSM does not have and suggests the spelling", function()
+			mock.item("|Hk|h", { name = "K", quality = 1, sellPrice = 5, group = "Materials`Leather", post = 0 })
+			SlashCmdList.SELLORPOST("rule materials`leather off")
+			assert.is_nil(_G.SellOrPostDB.rules["materials`leather"])
+			assert.matches("did you mean 'Materials`Leather'", mock.chat[1], 1, true)
+		end)
+
+		it("lists rules sorted and tagged", function()
+			mock.item("|Hc|h", { name = "C", quality = 1, sellPrice = 5, group = "Bags", post = 0 })
+			SlashCmdList.SELLORPOST("rule Bags off")
+			mock.chat = {}
+			SlashCmdList.SELLORPOST("rules")
+			assert.equal("  Bags: off (saved)", mock.chat[2])
+			assert.equal("  Keep (never post): off (default)", mock.chat[3])
+		end)
+
 		it("survives a TSM error", function()
 			local l = mock.item("|He|h", { name = "E", quality = 1, sellPrice = 5, group = "Bags", post = "error" })
 			assert.is_false(cb(l))

@@ -13,7 +13,9 @@ An item is marked when it has a vendor price and either:
 
 `post` is a custom price source you define in TSM (for example, the net gain per item over vendoring, left empty when a stack earns too little). If your Auctioning operations use `ifgte(first(post, 0.001), 1, 1000, 0)` as the post cap, the items marked here are the ones a post scan would show as "Posting disabled.".
 
-Items in no TSM group are never marked (except greys). Groups you hold can be excluded: the longest matching group path wins, so a subgroup can undo its parent.
+Items in no TSM group are never marked (except greys). Groups you hold can be excluded, greys in them included: the longest matching group path wins, so a subgroup can undo its parent.
+
+If TSM can't answer (not loaded, no `post` source), nothing is marked: you get one chat line per session saying why, and `/sellorpost` shows the last failure.
 
 ## Setup
 

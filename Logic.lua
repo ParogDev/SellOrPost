@@ -40,14 +40,14 @@ function Logic.verdict(item, rules)
 	if not item.sellPrice or item.sellPrice <= 0 then
 		return false, "no vendor price"
 	end
+	if item.groupPath and Logic.ruleFor(item.groupPath, rules) == false then
+		return false, "held group" -- wins over "poor quality": a held grey stays
+	end
 	if item.quality == 0 then
 		return true, "poor quality"
 	end
 	if not item.groupPath then
 		return false, "not in a TSM group"
-	end
-	if Logic.ruleFor(item.groupPath, rules) == false then
-		return false, "held group"
 	end
 	if type(item.post) ~= "number" then
 		return false, "broken: " .. (item.postError or "post price string gave no value")
