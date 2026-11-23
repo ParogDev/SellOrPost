@@ -1,0 +1,14 @@
+## Interface: 16001
+## Title: SellOrPost
+## Notes: Marks bag items as junk in Baganator when TradeSkillMaster's post rule says vendoring beats the auction house, so they can be sold at any vendor instead of mailed.
+## Author: ParogDev
+## Version: @project-version@
+## SavedVariables: SellOrPostDB
+## OptionalDeps: Baganator, TradeSkillMaster
+## X-Game: forever
+## X-Website: https://github.com/ParogDev/SellOrPost
+## X-License: MIT
+## IconTexture: Interface\Icons\INV_Misc_Coin_02
+
+Logic.lua
+Core.lua

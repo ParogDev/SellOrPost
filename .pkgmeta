@@ -1,0 +1,13 @@
+package-as: SellOrPost
+
+# Ship the hand-written CHANGELOG.md instead of the packager's dump of commit messages.
+manual-changelog:
+  filename: CHANGELOG.md
+  markup-type: markdown
+
+ignore:
+  - tests
+  - .github
+  - .luacheckrc
+  - .stylua.toml
+  - .busted
